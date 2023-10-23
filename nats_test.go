@@ -18,7 +18,6 @@ func NewInProcessNATSServer() (conn *natsclient.Conn, js jetstream.JetStream, cl
 		return
 	}
 	server, err := natsserver.NewServer(&natsserver.Options{
-		//ServerName: "monolith",
 		DontListen: true, // Don't make a TCP socket.
 		JetStream:  true,
 		StoreDir:   tmp,
