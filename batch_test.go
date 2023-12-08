@@ -3,6 +3,8 @@ package natsjson
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -42,12 +44,14 @@ func TestBatchProcessor(t *testing.T) {
 		t.Fatalf("unexpected failure creating or updating consumer: %v", err)
 	}
 
+	log := slog.New(slog.NewJSONHandler(io.Discard, nil))
+
 	t.Run("if no messages are present in the stream, the processor function is not called", func(t *testing.T) {
 		p := func(ctx context.Context, msgs []BatchMessage) []error {
 			t.Errorf("unexpected call to process function")
 			return make([]error, len(msgs))
 		}
-		bp := NewBatchProcessor[BatchMessage](consumer, 10, p, jetstream.FetchMaxWait(time.Millisecond))
+		bp := NewBatchProcessor[BatchMessage](consumer, 10, p, WithFetchOpts[BatchMessage](jetstream.FetchMaxWait(time.Millisecond)), WithLogger[BatchMessage](log))
 		if err := bp.Process(ctx); err != nil {
 			t.Fatalf("unexpected error processing batch: %v", err)
 		}
@@ -79,7 +83,7 @@ func TestBatchProcessor(t *testing.T) {
 			actual = append(actual, msgs...)
 			return make([]error, len(msgs))
 		}
-		bp := NewBatchProcessor[BatchMessage](consumer, 10, p, jetstream.FetchMaxWait(time.Millisecond))
+		bp := NewBatchProcessor[BatchMessage](consumer, 10, p, WithFetchOpts[BatchMessage](jetstream.FetchMaxWait(time.Millisecond)))
 		for i := 0; i < 3; i++ {
 			if err := bp.Process(ctx); err != nil {
 				t.Fatalf("unexpected error processing batch: %v", err)
@@ -126,7 +130,7 @@ func TestBatchProcessor(t *testing.T) {
 			actual = append(actual, msgs...)
 			return make([]error, len(msgs))
 		}
-		bp := NewBatchProcessor[BatchMessage](consumer, 10, p, jetstream.FetchMaxWait(time.Millisecond))
+		bp := NewBatchProcessor[BatchMessage](consumer, 10, p, WithFetchOpts[BatchMessage](jetstream.FetchMaxWait(time.Millisecond)))
 		for i := 0; i < 3; i++ {
 			if err := bp.Process(ctx); err != nil {
 				t.Fatalf("unexpected error processing batch: %v", err)
@@ -164,7 +168,7 @@ func TestBatchProcessor(t *testing.T) {
 			}
 			return
 		}
-		bpFail := NewBatchProcessor[BatchMessage](consumer, 10, fail, jetstream.FetchMaxWait(time.Millisecond))
+		bpFail := NewBatchProcessor[BatchMessage](consumer, 10, fail, WithFetchOpts[BatchMessage](jetstream.FetchMaxWait(time.Millisecond)))
 		var bpFailErrorHandlerCalls int
 		bpFail.ErrorHandler = func(msg BatchMessage, err error) {
 			if err != errFailedToProcessMessage {
@@ -184,7 +188,7 @@ func TestBatchProcessor(t *testing.T) {
 			actual = append(actual, msgs...)
 			return make([]error, len(msgs))
 		}
-		bpSucceed := NewBatchProcessor[BatchMessage](consumer, 10, succeed, jetstream.FetchMaxWait(time.Millisecond))
+		bpSucceed := NewBatchProcessor[BatchMessage](consumer, 10, succeed, WithFetchOpts[BatchMessage](jetstream.FetchMaxWait(time.Millisecond)))
 		var bpSucceedErrorHandlerCalls int
 		bpSucceed.ErrorHandler = func(msg BatchMessage, err error) {
 			bpSucceedErrorHandlerCalls++
