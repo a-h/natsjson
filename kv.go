@@ -60,15 +60,20 @@ func (db *KV[T]) History(ctx context.Context, key string) (values []T, ok bool, 
 		}
 		return values, false, err
 	}
-	values = make([]T, len(entries))
-	for i := 0; i < len(entries); i++ {
-		entry := entries[i]
-		err = json.Unmarshal(entry.Value(), &values[i])
+	for _, entry := range entries {
+		if entry.Operation() != jetstream.KeyValuePut {
+			ok = false
+			continue
+		}
+		ok = true
+		var v T
+		err = json.Unmarshal(entry.Value(), &v)
 		if err != nil {
 			return values, false, err
 		}
+		values = append(values, v)
 	}
-	return values, true, nil
+	return values, ok, nil
 }
 
 func (db *KV[T]) Put(ctx context.Context, key string, value T) (rev uint64, err error) {
@@ -139,7 +144,7 @@ func (db *KV[T]) List(ctx context.Context) (it *Iterator[T]) {
 		stop := func() error {
 			return nil
 		}
-		return NewIterator[T](next, stop)
+		return NewIterator(next, stop)
 	}
 	updates := w.Updates()
 

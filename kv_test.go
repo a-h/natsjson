@@ -73,6 +73,10 @@ func TestKV(t *testing.T) {
 		Name: "thomas",
 		Age:  48,
 	}
+	userToDelete := User{
+		Name: "to be deleted",
+		Age:  49,
+	}
 
 	t.Run("Put object", func(t *testing.T) {
 		expectedRev, err := db.Put(ctx, "user1", user1Rev1)
@@ -197,6 +201,21 @@ func TestKV(t *testing.T) {
 		}
 		if ok {
 			t.Error("expected ok=false, got ok=true")
+		}
+	})
+	t.Run("History returns ok=false for a key that was created, then deleted", func(t *testing.T) {
+		if _, err := db.Put(ctx, "userToDelete", userToDelete); err != nil {
+			t.Fatalf("unexpected error putting user to delete: %v", err)
+		}
+		if err = db.Delete(ctx, "userToDelete"); err != nil {
+			t.Fatalf("unexpected error deleting user to delete: %v", err)
+		}
+		history, ok, err := db.History(ctx, "userToDelete")
+		if err != nil {
+			t.Errorf("unexpected error getting value: %v", err)
+		}
+		if ok {
+			t.Errorf("expected ok=false, got ok=true: %v", history)
 		}
 	})
 	t.Run("List can iterate the bucket", func(t *testing.T) {
